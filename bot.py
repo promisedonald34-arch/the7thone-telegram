@@ -1,11 +1,11 @@
 import os
 import telebot
-from telebot.types import ReplyKeyboardMarkup, KeyboardButton
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from flask import Flask
 import threading
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = int(os.getenv("ADMIN_ID", "7738226053"))
+ADMIN_ID = 7738226053
 
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
@@ -28,69 +28,77 @@ def main_keyboard():
 @bot.message_handler(commands=['start'])
 def start(m):
     bot.send_message(m.chat.id, 
-        "Welcome to *THE 7TH ONE* 🖤\n\nSelect what you need below 👇\n\n👕 TOPS - Gucci, Balenciaga\n👖 BOTTOMS - Cargo, Jeans\n👟 FOOTWEAR - Sneakers, Slides\n\nClick PLACE ORDER to order",
+        "Welcome to *THE 7TH ONE* 🖤\n\n👕 TOPS\n👖 BOTTOMS\n👟 FOOTWEAR\n\nClick 🛒 PLACE ORDER to order\nClick 💳 PAYMENT to see account",
         reply_markup=main_keyboard(), parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "TOPS 🔥")
-def tops(m):
-    bot.send_message(m.chat.id, "🔥 *TOPS AVAILABLE*\n\n• Gucci Tee - 15k (M/L/XL)\n• Balenciaga - 22k\n• Vintage Tee - 10k\n\nSend as: `Gucci | M | Your Address | Phone`", parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "BOTTOMS")
-def bottoms(m):
-    bot.send_message(m.chat.id, "👖 *BOTTOMS*\n\n• Cargo - 18k\n• Jean - 16k\n• Shorts - 8k\n\nSend as: `Cargo | L | Your Address | Phone`", parse_mode="Markdown")
-
-@bot.message_handler(func=lambda m: m.text == "FOOTWEAR 👟")
-def footwear(m):
-    bot.send_message(m.chat.id, "👟 *FOOTWEAR*\n\n• Sneakers - 25k+\n• Slides - 12k\n\nSend as: `Sneakers | 43 | Your Address | Phone`", parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: m.text == "🛒 PLACE ORDER")
 def place_order(m):
-    bot.send_message(m.chat.id, "📦 *To Place Order, send in this format:*\n\n`Product | Size | Address | Phone`\n\nExample:\n`Gucci | M | Allen Ave Ikeja | 09048365677`\n\nJust type it now!", parse_mode="Markdown")
-    user_orders[m.chat.id] = "waiting"
+    bot.send_message(m.chat.id, "📦 Send order as:\n\n`Product | Size | Address | Phone`\n\nExample:\n`Gucci | M | Allen Ave Ikeja | 09048365677`", parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: m.text == "💳 PAYMENT")
 def payment(m):
     bot.send_message(m.chat.id, 
-        "💳 *PAYMENT DETAILS*\n\n"
-        "Bank: *OPay*\n"
-        "Acct No: `7045816469`\n"
-        "Name: *Promise Emeka*\n\n"
-        "After payment, send screenshot proof here. We confirm ASAP! 🙏\n\n"
-        "Tap and hold number to copy",
+        "💳 *PAYMENT DETAILS*\n\nBank: *OPay*\nAcct No: `7045816469`\nName: *Promise Emeka*\n\nAfter payment, send screenshot here.",
         parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: "|" in m.text and len(m.text.split("|")) >= 3)
 def capture_order(m):
-    try:
-        parts = [p.strip() for p in m.text.split("|")]
-        product = parts[0]
-        size = parts[1] if len(parts) > 1 else "N/A"
-        address = parts[2] if len(parts) > 2 else "N/A"
-        phone = parts[3] if len(parts) > 3 else "N/A"
-        
-        bot.send_message(m.chat.id, 
-            f"✅ *Order Received!*\n\nProduct: {product}\nSize: {size}\nAddress: {address}\nPhone: {phone}\n\nPlease click 💳 PAYMENT to pay.\n\nAcc No: `7045816469` (OPay - Promise Emeka)",
-            parse_mode="Markdown")
-        
-        admin_msg = f"📦 *NEW ORDER (No proof yet)*\nFrom: {m.chat.id} {f'@{m.from_user.username}' if m.from_user.username else 'No username'}\nProduct: {product} | Size: {size}\nAddress: {address}\nPhone: {phone}"
-        bot.send_message(ADMIN_ID, admin_msg, parse_mode="Markdown")
-        user_orders[m.chat.id] = f"{product} | {size} | {address}"
-    except:
-        bot.send_message(m.chat.id, "Format error. Use: Product | Size | Address | Phone")
+    parts = [p.strip() for p in m.text.split("|")]
+    product, size, address, phone = parts[0], parts[1], parts[2], parts[3] if len(parts)>3 else "N/A"
+    bot.send_message(m.chat.id, f"✅ Order saved!\n{product} | {size}\nNow click 💳 PAYMENT and pay to 7045816469", parse_mode="Markdown")
+    bot.send_message(ADMIN_ID, f"📦 *NEW ORDER (No proof yet)*\nFrom: {m.chat.id} @{m.from_user.username or ''}\nProduct: {product} | Size: {size}\nAddress: {address}\nPhone: {phone}", parse_mode="Markdown")
+    user_orders[m.chat.id] = f"{product} | {size}"
 
+# === PAYMENT PROOF WITH APPROVE/REJECT ===
 @bot.message_handler(content_types=['photo'])
 def payment_proof(m):
-    bot.send_message(m.chat.id, "✅ *PAYMENT PROOF RECEIVED!* We will confirm and ship your order shortly. Thanks for trusting THE7THONE 🖤", parse_mode="Markdown")
-    try:
-        bot.forward_message(ADMIN_ID, m.chat.id, m.message_id)
-        caption = f"💸 *PAYMENT PROOF RECEIVED*\nFrom: {m.chat.id} {f'@{m.from_user.username}' if m.from_user.username else 'No username'}\nOrder: {user_orders.get(m.chat.id, 'See previous')}\nTime: Proof just sent"
-        bot.send_message(ADMIN_ID, caption, parse_mode="Markdown")
-    except:
-        pass
+    customer_id = m.chat.id
+    customer_name = f"@{m.from_user.username}" if m.from_user.username else f"ID {customer_id}"
+    order_info = user_orders.get(customer_id, "No order details yet")
 
-@bot.message_handler(func=lambda m: True)
-def fallback(m):
-    bot.send_message(m.chat.id, "Use buttons below 👇 or send order as:\n`Product | Size | Address | Phone`", reply_markup=main_keyboard(), parse_mode="Markdown")
+    # Tell customer we are checking
+    bot.send_message(customer_id, "⏳ *PAYMENT PROOF RECEIVED!* We are verifying your payment to OPay 7045816469...\n\nYou will get confirmation in a minute. 🙏", parse_mode="Markdown")
+
+    # Create Approve/Reject buttons for YOU
+    markup = InlineKeyboardMarkup()
+    markup.row(
+        InlineKeyboardButton("✅ APPROVE", callback_data=f"approve_{customer_id}"),
+        InlineKeyboardButton("❌ REJECT (Fake)", callback_data=f"reject_{customer_id}")
+    )
+
+    # Forward photo to YOU with buttons
+    try:
+        bot.send_photo(ADMIN_ID, m.photo[-1].file_id, 
+            caption=f"💸 *PAYMENT PROOF RECEIVED*\nFrom: {customer_name}\nCustomer Chat ID: `{customer_id}`\nOrder: {order_info}\n\nCheck your OPay 7045816469 - Did you receive it?\n👇 Click to approve or reject",
+            parse_mode="Markdown", reply_markup=markup)
+    except Exception as e:
+        print(e)
+
+# Handle button clicks
+@bot.callback_query_handler(func=lambda call: True)
+def handle_approve_reject(call):
+    if call.from_user.id != ADMIN_ID:
+        bot.answer_callback_query(call.id, "Only owner can approve!")
+        return
+
+    data = call.data
+    # data format: approve_123456 or reject_123456
+    action, customer_id_str = data.split("_")
+    customer_id = int(customer_id_str)
+
+    if action == "approve":
+        # Send to customer
+        bot.send_message(customer_id, 
+            "✅ *PAYMENT CONFIRMED!* \n\nThanks! We have received your payment to OPay 7045816469 (Promise Emeka).\n\n🚚 Your order is being packaged and will be shipped today!\n\nWe appreciate you shopping with THE7THONE 🖤")
+        # Update admin message
+        bot.edit_message_caption(f"✅ *APPROVED* - Payment confirmed for {customer_id}\nCustomer notified.", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+        bot.answer_callback_query(call.id, "Approved!")
+
+    elif action == "reject":
+        bot.send_message(customer_id, 
+            "❌ *PAYMENT NOT RECEIVED*\n\nBoss, we checked OPay 7045816469 (Promise Emeka) and we didn't see your payment yet.\n\nPlease:\n1. Check if you sent to correct number: 7045816469\n2. Wait 2 mins for network\n3. Send clearer screenshot with transaction ID\n\nOr contact support if you have proof.")
+        bot.edit_message_caption(f"❌ *REJECTED* - Fake/not received for {customer_id}\nCustomer notified to recheck.", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+        bot.answer_callback_query(call.id, "Rejected!")
 
 if __name__ == "__main__":
     threading.Thread(target=run_flask).start()
