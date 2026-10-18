@@ -1,110 +1,96 @@
 import os
 import telebot
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 from flask import Flask
 import threading
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = int(os.getenv("ADMIN_ID", "7738226053"))
+
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
 @app.route('/')
-def home():
-    return "THE7THONE BOT LIVE!"
+def home(): return "THE7THONE ORDER BOT LIVE!"
 
 def run_flask():
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
 
-# === YOUR STORE REPLIES ===
-MENU_TEXT = """🔥 *THE 7TH ONES - OFFICIAL DRIP MENU* 🔥
+user_orders = {}
 
-*👕 TOPS*
-┣ Gucci Tee - 15k
-┣ Balenciaga - 22k
-┗ Vintage - 10k
+def main_keyboard():
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row(KeyboardButton("TOPS 🔥"), KeyboardButton("BOTTOMS"))
+    markup.row(KeyboardButton("FOOTWEAR 👟"), KeyboardButton("🛒 PLACE ORDER"))
+    markup.row(KeyboardButton("💳 PAYMENT"))
+    return markup
 
-*👖 BOTTOMS*
-┣ Cargo - 18k
-┣ Jean - 16k
-┗ Shorts - 8k
-
-*👟 FOOTWEAR*
-┣ Sneakers - 25k+
-┗ Slides - 12k
-
-━━━━━━━━━━━━━━━━━━
-💳 *PAYMENT*: Transfer / Cash on Delivery
-🚚 *DELIVERY*: Lagos same day, Outside 2-3 days
-
-Type PRICE to order 👇"""
-
-PRICE_TEXT = """💸 *THE 7TH ONES - PRICE LIST* 💸
-
-Why we different? Quality no be joke! 💯
-
-🔥 *STARTER PACK - 35k*
-   (Tee + Cargo + Cap)
-
-👑 *BOSS PACK - 60k*
-   (Full drip + Sneakers)
-
-⚡ *SINGLE ITEMS - 8k to 25k*
-
-Want discount? Type OWNER and say "7TH GANG" for 10% OFF! 😉"""
-
-LOCATION_TEXT = """📍 *WE ARE IN LAGOS!*
-
-🏠 Main: Yaba, Lagos
-🚚 Delivery to:
-    - Lagos - 2k-4k (Today)
-    - Ibadan - 3k
-    - Abuja - 5k
-    - Everywhere else - We ship!
-
-Type OWNER to drop your location 📦"""
-
-OWNER_TEXT = """👑 *CONNECT TO THE BOSS*
-
-The 7th One himself dey online!
-
-📞 WhatsApp: wa.me/234YOURNUMBER
-📸 IG: @the7thones
-⏰ Active: 9AM - 11PM Daily
-
-*Send your order now - We no dey dull!* 🚀"""
-
-WELCOME = """╭━━━━━━━🔥 *THE 7TH ONE* 🔥━━━━━━━╮
-┃
-┃  Yo! Welcome to the wave 🌊
-┃  You just tapped the realest bot in Lagos!
-┃
-┃  ⚡ What you wanna do?
-┃  ┣ 📋 Type *MENU* - See drip
-┃  ┣ 💰 Type *PRICE* - Check cost  
-┃  ┣ 📍 Type *LOCATION*
-┃  ┗ 👑 Type *OWNER* - Talk to boss
-┃
-╰━━━━━━━━━━━━━━━━━━━━━━╯"""
-
-@bot.message_handler(commands=['start','menu','help'])
+@bot.message_handler(commands=['start'])
 def start(m):
-    bot.send_message(m.chat.id, WELCOME, parse_mode="Markdown")
+    bot.send_message(m.chat.id, 
+        "Welcome to *THE 7TH ONE* 🖤\n\nSelect what you need below 👇\n\n👕 TOPS - Gucci, Balenciaga\n👖 BOTTOMS - Cargo, Jeans\n👟 FOOTWEAR - Sneakers, Slides\n\nClick PLACE ORDER to order",
+        reply_markup=main_keyboard(), parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "TOPS 🔥")
+def tops(m):
+    bot.send_message(m.chat.id, "🔥 *TOPS AVAILABLE*\n\n• Gucci Tee - 15k (M/L/XL)\n• Balenciaga - 22k\n• Vintage Tee - 10k\n\nSend as: `Gucci | M | Your Address | Phone`", parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "BOTTOMS")
+def bottoms(m):
+    bot.send_message(m.chat.id, "👖 *BOTTOMS*\n\n• Cargo - 18k\n• Jean - 16k\n• Shorts - 8k\n\nSend as: `Cargo | L | Your Address | Phone`", parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "FOOTWEAR 👟")
+def footwear(m):
+    bot.send_message(m.chat.id, "👟 *FOOTWEAR*\n\n• Sneakers - 25k+\n• Slides - 12k\n\nSend as: `Sneakers | 43 | Your Address | Phone`", parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "🛒 PLACE ORDER")
+def place_order(m):
+    bot.send_message(m.chat.id, "📦 *To Place Order, send in this format:*\n\n`Product | Size | Address | Phone`\n\nExample:\n`Gucci | M | Allen Ave Ikeja | 09048365677`\n\nJust type it now!", parse_mode="Markdown")
+    user_orders[m.chat.id] = "waiting"
+
+@bot.message_handler(func=lambda m: m.text == "💳 PAYMENT")
+def payment(m):
+    bot.send_message(m.chat.id, 
+        "💳 *PAYMENT DETAILS*\n\n"
+        "Bank: *OPay*\n"
+        "Acct No: `7045816469`\n"
+        "Name: *Promise Emeka*\n\n"
+        "After payment, send screenshot proof here. We confirm ASAP! 🙏\n\n"
+        "Tap and hold number to copy",
+        parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: "|" in m.text and len(m.text.split("|")) >= 3)
+def capture_order(m):
+    try:
+        parts = [p.strip() for p in m.text.split("|")]
+        product = parts[0]
+        size = parts[1] if len(parts) > 1 else "N/A"
+        address = parts[2] if len(parts) > 2 else "N/A"
+        phone = parts[3] if len(parts) > 3 else "N/A"
+        
+        bot.send_message(m.chat.id, 
+            f"✅ *Order Received!*\n\nProduct: {product}\nSize: {size}\nAddress: {address}\nPhone: {phone}\n\nPlease click 💳 PAYMENT to pay.\n\nAcc No: `7045816469` (OPay - Promise Emeka)",
+            parse_mode="Markdown")
+        
+        admin_msg = f"📦 *NEW ORDER (No proof yet)*\nFrom: {m.chat.id} {f'@{m.from_user.username}' if m.from_user.username else 'No username'}\nProduct: {product} | Size: {size}\nAddress: {address}\nPhone: {phone}"
+        bot.send_message(ADMIN_ID, admin_msg, parse_mode="Markdown")
+        user_orders[m.chat.id] = f"{product} | {size} | {address}"
+    except:
+        bot.send_message(m.chat.id, "Format error. Use: Product | Size | Address | Phone")
+
+@bot.message_handler(content_types=['photo'])
+def payment_proof(m):
+    bot.send_message(m.chat.id, "✅ *PAYMENT PROOF RECEIVED!* We will confirm and ship your order shortly. Thanks for trusting THE7THONE 🖤", parse_mode="Markdown")
+    try:
+        bot.forward_message(ADMIN_ID, m.chat.id, m.message_id)
+        caption = f"💸 *PAYMENT PROOF RECEIVED*\nFrom: {m.chat.id} {f'@{m.from_user.username}' if m.from_user.username else 'No username'}\nOrder: {user_orders.get(m.chat.id, 'See previous')}\nTime: Proof just sent"
+        bot.send_message(ADMIN_ID, caption, parse_mode="Markdown")
+    except:
+        pass
 
 @bot.message_handler(func=lambda m: True)
-def reply_all(m):
-    text = m.text.lower().strip() if m.text else ""
-    
-    if "menu" in text or "product" in text or "catalog" in text or "1" == text:
-        bot.send_message(m.chat.id, MENU_TEXT, parse_mode="Markdown")
-    elif "price" in text or "cost" in text or "how much" in text or "2" == text:
-        bot.send_message(m.chat.id, PRICE_TEXT, parse_mode="Markdown")
-    elif "location" in text or "where" in text or "deliver" in text:
-        bot.send_message(m.chat.id, LOCATION_TEXT, parse_mode="Markdown")
-    elif "owner" in text or "boss" in text or "order" in text or "buy" in text or "4" == text:
-        bot.send_message(m.chat.id, OWNER_TEXT, parse_mode="Markdown")
-    elif text in ["hi","hello","hey","yo","sup","0"]:
-        bot.send_message(m.chat.id, WELCOME, parse_mode="Markdown")
-    else:
-        bot.send_message(m.chat.id, f"You said '{m.text}'\n\nI understand:\n*MENU* | *PRICE* | *LOCATION* | *OWNER*\n\nTry one! 👆", parse_mode="Markdown")
+def fallback(m):
+    bot.send_message(m.chat.id, "Use buttons below 👇 or send order as:\n`Product | Size | Address | Phone`", reply_markup=main_keyboard(), parse_mode="Markdown")
 
 if __name__ == "__main__":
     threading.Thread(target=run_flask).start()
