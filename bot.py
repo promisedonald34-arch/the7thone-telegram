@@ -49,24 +49,17 @@ def capture_order(m):
     bot.send_message(ADMIN_ID, f"📦 *NEW ORDER (No proof yet)*\nFrom: {m.chat.id} @{m.from_user.username or ''}\nProduct: {product} | Size: {size}\nAddress: {address}\nPhone: {phone}", parse_mode="Markdown")
     user_orders[m.chat.id] = f"{product} | {size}"
 
-# === PAYMENT PROOF WITH APPROVE/REJECT ===
 @bot.message_handler(content_types=['photo'])
 def payment_proof(m):
     customer_id = m.chat.id
     customer_name = f"@{m.from_user.username}" if m.from_user.username else f"ID {customer_id}"
     order_info = user_orders.get(customer_id, "No order details yet")
-
-    # Tell customer we are checking
     bot.send_message(customer_id, "⏳ *PAYMENT PROOF RECEIVED!* We are verifying your payment to OPay 7045816469...\n\nYou will get confirmation in a minute. 🙏", parse_mode="Markdown")
-
-    # Create Approve/Reject buttons for YOU
     markup = InlineKeyboardMarkup()
     markup.row(
         InlineKeyboardButton("✅ APPROVE", callback_data=f"approve_{customer_id}"),
         InlineKeyboardButton("❌ REJECT (Fake)", callback_data=f"reject_{customer_id}")
     )
-
-    # Forward photo to YOU with buttons
     try:
         bot.send_photo(ADMIN_ID, m.photo[-1].file_id, 
             caption=f"💸 *PAYMENT PROOF RECEIVED*\nFrom: {customer_name}\nCustomer Chat ID: `{customer_id}`\nOrder: {order_info}\n\nCheck your OPay 7045816469 - Did you receive it?\n👇 Click to approve or reject",
@@ -74,29 +67,19 @@ def payment_proof(m):
     except Exception as e:
         print(e)
 
-# Handle button clicks
 @bot.callback_query_handler(func=lambda call: True)
 def handle_approve_reject(call):
     if call.from_user.id != ADMIN_ID:
         bot.answer_callback_query(call.id, "Only owner can approve!")
         return
-
-    data = call.data
-    # data format: approve_123456 or reject_123456
-    action, customer_id_str = data.split("_")
+    action, customer_id_str = call.data.split("_")
     customer_id = int(customer_id_str)
-
     if action == "approve":
-        # Send to customer
-        bot.send_message(customer_id, 
-            "✅ *PAYMENT CONFIRMED!* \n\nThanks! We have received your payment to OPay 7045816469 (Promise Emeka).\n\n🚚 Your order is being packaged and will be shipped today!\n\nWe appreciate you shopping with THE7THONE 🖤")
-        # Update admin message
+        bot.send_message(customer_id, "✅ *PAYMENT CONFIRMED!* \n\nThanks! We have received your payment to OPay 7045816469 (Promise Emeka).\n\n🚚 Your order is being packaged and will be shipped today!\n\nWe appreciate you shopping with THE7THONE 🖤")
         bot.edit_message_caption(f"✅ *APPROVED* - Payment confirmed for {customer_id}\nCustomer notified.", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
         bot.answer_callback_query(call.id, "Approved!")
-
     elif action == "reject":
-        bot.send_message(customer_id, 
-            "❌ *PAYMENT NOT RECEIVED*\n\nBoss, we checked OPay 7045816469 (Promise Emeka) and we didn't see your payment yet.\n\nPlease:\n1. Check if you sent to correct number: 7045816469\n2. Wait 2 mins for network\n3. Send clearer screenshot with transaction ID\n\nOr contact support if you have proof.")
+        bot.send_message(customer_id, "❌ *PAYMENT NOT RECEIVED*\n\nBoss, we checked OPay 7045816469 (Promise Emeka) and we didn't see your payment yet.\n\nPlease:\n1. Check if you sent to correct number: 7045816469\n2. Wait 2 mins for network\n3. Send clearer screenshot with transaction ID\n\nOr contact support if you have proof.")
         bot.edit_message_caption(f"❌ *REJECTED* - Fake/not received for {customer_id}\nCustomer notified to recheck.", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
         bot.answer_callback_query(call.id, "Rejected!")
 
